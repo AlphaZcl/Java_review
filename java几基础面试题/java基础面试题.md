@@ -356,3 +356,182 @@ public class OverridingExample {
   * 两同:方法名和形参列表一致
   * 两小:重写方法的返回值(引用类型)和抛出异常类型，要和被重写方法的相同或者是其子类。注意一旦返回值是基本数据类型，那么重写方法和被重写方法必须相同，且不存在自动拆装箱的问题
   * 一大:重写方法的访问修饰符>=被重写方法的访问修饰符
+
+## 11.什么是java内部类？它有什么作用？
+内部类顾名思义就是定义在一个类的内部的类。它主要作用是为了封装和逻辑分组，提供更清晰的代码组织结构。  
+通过内部类，可以把逻辑上相关的类组织在一起，提升封装性和代码的可读性。后期维护时都在一个类里面，不需要在各地方找来找去。  
+按位置分:在成员变量的位置定义，则是成员内部类，在方法内定义，则是局部内部类。  
+如果用 static修饰则为静态内部类，最后还有匿名内部类。  
+### 成员内部类
+定义在另一个类中的类，可以使用外部类的所有成员变量以及方法，包括private的。  
+```java
+public class OuterClass {
+    private String outerField = "Outer Field";
+
+    class InnerClass {
+        void display() {
+            System.out.println("Outer Field: " + outerField);
+        }
+    }
+
+    public void createInner() {
+        InnerClass inner = new InnerClass();
+        inner.display();
+    }
+}
+```
+### 静态内部类
+只能访问外部类的静态成员变量以及方法，其实它就等于一个顶级类，可以独立于外部类使用，所以更多的只是表明类结构和命名空间。  
+```java
+public class OuterClass {
+    private static String staticOuterField = "Static Outer Field";
+
+    static class StaticInnerClass {
+        void display() {
+            System.out.println("Static Outer Field: " + staticOuterField);
+        }
+    }
+
+    public static void createStaticInner() {
+        StaticInnerClass staticInner = new StaticInnerClass();
+        staticInner.display();
+    }
+}
+```
+### 局部内部类
+指在方法中定义的类，只在该方法内可见，可以访问外部类的成员以及方法中的局部变量(需要声明为 final 或effectively final)。
+```java
+public class OuterClass {
+    void outerMethod() {
+        final String localVar = "Local Variable";
+
+        class LocalInnerClass {
+            void display() {
+                System.out.println("Local Variable: " + localVar);
+            }
+        }
+
+        LocalInnerClass localInner = new LocalInnerClass();
+        localInner.display();
+    }
+}
+```
+
+### 匿名类
+指的是没有类名的内部类。用于简化实现接口和继承类的代码，仅在创建对象时使用，例如回调逻辑定义场景。
+```java
+public class OuterClass {
+    interface Greeting {
+        void greet();
+    }
+
+    public void sayHello() {
+        Greeting greeting = new Greeting() {
+            @Override
+            public void greet() {
+                System.out.println("Hello, World!");
+            }
+        };
+        greeting.greet();
+    }
+}
+```
+局部内部类用的比较少，常用成员内部类、静态内部类和匿名内部类。  
+实际上内部类是一个编译层面的概念，像一个语法糖一样，经过编译器之后其实内部类会提升为外部顶级类，和外部类没有任何区别，所以在JVM 中是没有内部类的概念的。
+
+## 12.Java中StringBuffer,String,StringBuilder的区别是什么？
+String是Java中基础且重要的类，并且string也是Immutable类的典型实现，被声明为final class，除了 hash 这个属性其它属性都声明为final 。  
+因为它的不可变性，所以例如拼接字符串时候会产生很多无用的中间对象，如果频繁的进行这样的操作对性能有所影响。  
+**StringBuffer 就是为了解决大量拼接字符串时产生很多中间对象问题而提供的一个类**，提供append 和 add 方法，可以将字符串添加到已有序列的末尾或指定位置。  
+它的本质是一个线程安全的可修改的字符序列，把所有修改数据的方法都加上了synchronized。但是保证了线程安全是需要性能的代价的。  
+在很多情况下我们的字符串拼接操作不需要线程安全，这时候StringBuilder登场了，StringBuilder是JDK1.5发布的，它和 stringBuffer本质上没什么区别，就是去掉了保证线程安全的那部分，减少了开销。  
+所以如果我们有大量的字符串拼接，如果能预知大小的话最好在new StringBuffer或者 StringBuilder 的时候设置好 capacity，避免多次扩容的开销(扩容要抛弃原有数组，还要进行数组拷贝创建新的数组)。  
+**选择建议**
+* String:适用于少量字符串操作或需要字符串常量池优化的场景。
+* StringBuffer:适用于多线程环境下频繁的字符串操作。
+* StringBuilder:适用于单线程环境下频繁的字符串操作。
+
+## 13.Java的StringBuilder是怎么实现的？
+### 剖析 StringBuilder
+首先因为已经有现有的实现作为参考，所以回答诸如此类的问题，不要急，先回想一下平日用这个StringBuilder 都用了哪些方法。
+>append  
+>insert  
+>delete  
+>replace  
+>charAt  
+>...
+
+大致就这么几个，没必要说太全，这不是小学课文背诵，关键方法提出来就行了。  
+脑子浮现这几个方法之后，直接说出来即可:StringBuilder主要用于动态拼接字符串，大致需要实现append、 insert...等功能。  
+然后底层使用char数组来存储字符，用count来记录存放的字符数。  
+>这里可能会被面试官插入问：String底层不也是用的char数组存放吗？两者有啥区别？
+
+String被final修饰，且内部的char也被private和final修饰了，所以是不可变的，是典型的 Immutable类，因此其不可变性，保证了线程安全，能实现字符串常量池等。  
+
+由于StringBuilder底层是用char数组存放字符，**而数组是连续内存结构，为了防止频繁地复制和申请内存，需要提供capacity参数来设置初始化数组的大小**，这样在预先已经知晓大字符串的情况下，可以减少数组的扩容次数，有效的提升效率!  
+![stringBuilder源码](./images/StringBuidler源码.png)
+
+图片这里一定要点破:数组是连续内存的结构，并且要体现出你有节省内存和提高效率的意识，熟悉HashMap的同学对这类操作应该很有经验。  
+我们来看下调用AbstractStringBuilder这个父类的构造器。  
+![AbstractStringBuilder构造器](./images/AbstractStringBuilder构造器.png)
+就是直接new申请数组没啥其他的
+主要是append操作：
+![逻辑源码](./images/StringBuilder的append操作主逻辑源码.png)
+主要逻辑就是：先看看append 的int值转成char需要占数组的几位，  
+然后计算一下现在的数组够不够放，如果不够就扩容一下，然后再把int转成char放进去，再更新现有的字符数。  
+面试官可能会追问:怎么扩容的呀?
+我们直接看下ensureCapacityInternal这个方法的实现
+![扩容源码](./images/StringBuilder扩容逻辑源码.png)
+
+### 总结
+StringBuilder的内部实现就是数组的操作，而数组的特性就是内存连续，下标访问快。  
+针对内存连续这点，又要保持StringBuilder的动态性，那不可避免的就需要扩容操作，扩容操作简单来说就是申请一个更大char 数组，把老char数组的数据拷贝过去。  
+所以回答这个设计题的时候，先说下需要实现哪些关键方法:append、delete等等，然后点明底层是char 数组实现，在执行append、insert等操作的时候需要先判断数组容量是否足够容纳字符来判断是否需要扩容，然后修改之类的操作就是调用System.arraycopy 来完成字符串的变更。
+
+## 14.Java中包装类型和基本类型有什么区别？
+**因为Java 是一种面向对象语言，很多地方都需要使用对象而不是基本数据类型**。比如，在集合类中，我们是无法将 int、double等类型放进去的。因为集合的容器要求元素是Object类型。  
+为了让基本类型也具有对象的特征，就出现了包装类型，它相当于将基本类型“包装起来”，使得它具有了对象的性质，并且为其添加了属性和方法，丰富了基本类型的操作。  
+### 基本类型与包装类型的区别
+* **默认值不同**:基本类型的默认值是0，false等，包装类默认为 null
+* **初始化的方式不同**:一个需要采用new的方式创建，一个则不需要
+* **存储方式有所差异**:基本类型主要保存在栈上面，包装类对象保存在堆上(成员变量的话，在不考虑JIT优化的栈上分配时，都是随着对象一起保存在堆上的)
+
+## 15.JDK和JRE有什么区别？
+### JRE(Java Runtime Environment)
+指的是Java运行环境，包含了JVM、核心类库和其他支持运行Java程序的文件。  
+* JVM (Java Virtual Machine):执行Java 字节码，提供了Java 程序的运行环境。
+* 核心类库:一组标准的类库(如java.lang、java.util等)，供Java程序使用。
+* 其他文件:如配置文件、库文件等，支持JVM 的运行。
+### JDK (Java DevelopmentKit)
+可以视为JRE的超集，是用于开发Java程序的完整开发环境，它包含了JRE，以及用于开发、调试和监控 Java 应用程序的工具。  
+* JRE:JDK包含了完整的JRE，因此它也能运行Java 程序。 
+* 开发工具:如编译器(javac)、调试器(jdb)、打包工具(jar)等，用于开发和管理Java程序。
+* 附加库和文件:支持开发、文档生成和其他开发相关的任务。 
+### 列举一下JDK提供的主要工具:
+* javac: Java编译器，用于将Java源代码(.java文件)编译成字节码(.class 文件)。 
+* java: Java应用程序启动器，用于运行Java应用程序。 
+* javadoc: 文档生成器，用于从Java源代码中提取注释并生成HTML 格式的 API文档。
+* jar: 归档工具，用于创建和管理JAR(Java ARchive)文件。 
+* jdb:Java调试器，用于调试Java程序。 
+* jps:Java进程状态工具，用于列出当前所有的Java进程。 
+* jstat:JVM统计监视工具，用于监视JVM统计信息。 
+* jstatd:JVM 统计监视守护进程，用于在远程监视JVM统计信息。 
+* jmap:内存映射工具，用于生成堆转储(heap dump)、查看内存使用情况。 
+* jhat: 堆分析工具，用于分析堆转储文件。 
+* jstack: 线程栈追踪工具，用于打印Java线程的栈追踪信息。
+* javap: 类文件反汇编器，用于反汇编和查看Java类文件。 
+* jdeps: Java类依赖分析工具，用于分析类文件或JAR文件的依赖关系。
+
+## 16.你使用过哪些JDK提供的工具？
+这个题目主要考察你平日里面是否有过利用JDK的工具进行问题的分析、排查。
+(注意，这里不要说什么javac之类的命令，主要想考察的是问题分析、排查方面的内容)
+比如排查内存问题的时候，利用jmap生成堆转储文件，下载后利用Eclipse的MAT工具进行分析。
+如果大家没有排查经验，强烈建议去尝试一下，难度不高的。  
+**列几个常见工具，建议可以用用，还是很简单的**。
+* jps:虚拟机进程状况工具
+* jstat:虚拟机统计信息监视工具 
+* jmap: Java内存映像工具
+* jhat:虚拟机堆转储快照分析工具 
+* jstack: Java堆栈跟踪工具 
+* jinfo:Java配置信息工具
+* VisualVM:图形化工具，可以得到虚拟机运行时的一些信息:内存分析、CPU分析等等，在jdk9开始不再默认打包进jdk中。
